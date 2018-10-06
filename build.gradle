@@ -1,0 +1,130 @@
+buildscript {
+    repositories {
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' } // aliyun
+        mavenLocal() 
+        maven { url "http://nexus.dev.178by.com/nexus/content/groups/public/" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.5.10.RELEASE")
+        classpath "io.spring.gradle:dependency-management-plugin:0.6.0.RELEASE"
+    }
+}
+
+plugins {
+    id 'java'
+    id 'idea'
+    id 'eclipse'
+    id 'net.researchgate.release' version '2.5.0'
+    id 'com.github.ben-manes.versions' version '0.14.0'
+}
+
+apply plugin: 'project-report'
+apply plugin: 'maven-publish'
+apply plugin: 'spring-boot'
+apply plugin: "io.spring.dependency-management"
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
+}
+
+jar {
+	baseName='hd-zuul-server'
+	from('src/main/java'){
+		include '**/*.xml'
+	}
+}
+sourceSets {
+    main {
+        resources { 
+            srcDir 'src/main/java' //可以将java目录下的所有非.java资源打包到classes下
+        }
+    }
+}
+
+group = 'com.hd.cloud'
+
+repositories{
+    maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
+    mavenLocal()
+	maven { url "http://nexus.dev.178by.com/nexus/content/groups/public/" }
+}
+
+dependencyManagement {
+    imports {
+          mavenBom 'org.springframework.cloud:spring-cloud-netflix:1.2.7.RELEASE'
+     }
+
+}
+
+dependencies {
+    compile('org.springframework.cloud:spring-cloud-starter-eureka'){
+       exclude module : 'logback-classic'
+    }
+    compile('org.springframework.cloud:spring-cloud-starter-zuul'){
+       exclude module : 'logback-classic'
+    }
+    
+    compile('org.springframework.cloud:spring-cloud-starter-config'){
+    	exclude module : 'logback-classic'
+    }
+     
+    //spring redis
+	compile("org.springframework.boot:spring-boot-starter-data-redis"){
+    	exclude module : 'logback-classic'
+    } 
+
+    compile ('org.springframework.boot:spring-boot-autoconfigure'){
+        exclude module : 'logback-classic'
+    }
+
+	//lombok
+    compile("org.projectlombok:lombok:1.16.12"){
+    	exclude module : 'logback-classic'
+    }  
+    
+    //slf4j-api --> log4j-slf4j-impl --> log4j-api --> log4j-core
+    //commons-logging --> log4j-jcl --> log4j-api --> log4j-core
+    //java.util.logging --> log4j-jul --> log4j-api --> log4j-core
+    compile('org.slf4j:slf4j-api:1.7.22')
+    compile('org.apache.logging.log4j:log4j-slf4j-impl:2.2')
+    compile('org.apache.logging.log4j:log4j-api:2.2')
+    compile('org.apache.logging.log4j:log4j-core:2.2')
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            credentials {
+                username "java"
+                password "java@123"
+            }
+
+            if(project.version.endsWith('-SNAPSHOT')) {
+                url "http://192.168.0.16:889/nexus/content/repositories/snapshots/"
+            } else {
+                url "http://192.168.0.16:889/nexus/content/repositories/releases/"
+            }
+        }
+    }
+}
+
+compileJava {
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
+build.dependsOn dependencyUpdates
+
+release {
+    tagTemplate = '${name}'
+    git {
+        requireBranch = 'master'
+        pushToRemote = 'origin'
+        pushToBranchPrefix = ''
+        commitVersionFileOnly = false
+    }
+}
